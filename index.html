@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" style=" height: 100%">
+
+<head>
+  <meta charset="utf-8" />
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+
+<body style="height: 100%; margin: 0">
+  <div id="main" style="height: 100%"></div>
+  <script type="text/javascript">
+    var chartDom = document.getElementById('main');
+    var myChart = echarts.init(chartDom);
+    var option;
+
+    function connectWS(symbol) {
+      var socket = new WebSocket("wss://stream.bybit.com/v5/public/linear");
+
+      let data = [];
+
+      option = {
+        title: {
+          text: 'Tick chart'
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'cross',
+            label: {
+              backgroundColor: '#283b56'
+            }
+          }
+        },
+        toolbox: {
+          /*feature: {
+            dataZoom: {
+              yAxisIndex: false
+            }
+          }*/
+        },
+        grid: [
+          {
+            left: '10%',
+            right: '10%',
+            bottom: 200
+          },
+          {
+            left: '10%',
+            right: '10%',
+            height: 80,
+            bottom: 80
+          }
+        ],
+        xAxis: {
+          scale: true,
+          type: 'time'
+          //minorSplitLine: {
+          //  show: true
+          //}
+        },
+        yAxis: {
+          scale: true,
+          boundaryGap: [0, '250%']
+          //minorSplitLine: {
+          //  show: true
+          //}
+        },
+        dataZoom: [
+          {
+            id: 'dataZoomX',
+            type: 'slider',
+            xAxisIndex: [0],
+            filterMode: 'filter',
+            start: 50,
+            end: 100
+          },
+          {
+            id: 'dataZoomY',
+            type: 'slider',
+            yAxisIndex: [0],
+            filterMode: 'filter',
+            start: 0,
+            end: 100
+          }
+        ],
+        series: [
+          {
+            name: 'Fake Data',
+            type: 'scatter',
+            showSymbol: false
+          }
+        ]
+      };
+      option && myChart.setOption(option);
+
+      socket.onopen = function () {
+        var subscribeRequest = {"op": "subscribe", "args": ["publicTrade." + symbol]};
+        socket.send(JSON.stringify(subscribeRequest));
+      };
+
+      socket.onclose = function (event) {
+        if (event.wasClean) {
+          alert('Connection close clear');
+        } else {
+          alert('Break connection'); // например, "убит" процесс сервера
+        }
+        alert('Code: ' + event.code + ' reason: ' + event.reason);
+      };
+
+      socket.onmessage = function (event) {
+        console.log("Получены данные " + event.data);
+        var js = JSON.parse(event.data)
+        /*const scatterData = {
+          name: 'point',
+          value: [js.data[0].T, js.data[0].p],
+          itemStyle: js.data[0].S == "Buy" ? '#1ea224' : '#c23531'
+        };*/
+        data.push([js.data[0].T, js.data[0].p, js.data[0].S])
+        myChart.setOption({
+          series: [
+            {
+              type: 'scatter',
+              data: data,
+              animation: false,
+              itemStyle: {
+                color: function(param) {
+                  return param.data[2] == "Buy" ? '#1ea224' : '#c23531'
+                }
+              }
+            }
+          ]
+        });
+      };
+
+      socket.onerror = function (error) {
+        alert("Error " + error.message);
+      };
+
+    }
+
+    connectWS("ZETAUSDT")
+  </script>
+</body>
+
+</html>
